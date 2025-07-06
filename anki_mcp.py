@@ -61,5 +61,9 @@ def read_decks():
     return "\n".join(result)
 
 
-if __name__ == "__main__":
+def main():
     mcp.run(transport="stdio")
+
+
+if __name__ == "__main__":
+    main()
