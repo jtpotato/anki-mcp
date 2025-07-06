@@ -1,11 +1,11 @@
 import os
 import sqlite3
-import argparse
 import time
+from typing import List
 
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("anki-mcp")
+mcp: FastMCP = FastMCP("anki-mcp")
 
 ANKI_DB_PATH = os.path.expanduser(
     "~/Library/Application Support/Anki2/User 1/collection.anki2"
@@ -13,10 +13,12 @@ ANKI_DB_PATH = os.path.expanduser(
 
 
 @mcp.tool()
-def read_decks():
+def read_decks() -> str:
     """Read and print the due/new cards of each deck in the Anki database."""
-    result = []
+    result: List[str] = []
+
     print("Reading deck status from Anki database...")
+
     if not os.path.exists(ANKI_DB_PATH):
         return f"Database not found at {ANKI_DB_PATH}"
     conn = sqlite3.connect(ANKI_DB_PATH)
