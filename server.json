@@ -1,0 +1,10 @@
+{
+  "anki-mcp": {
+    "command": "uvx",
+    "args": [
+      "--from",
+      "git+https://github.com/jtpotato/anki-mcp@main",
+      "anki-mcp"
+    ]
+  }
+}

@@ -3,16 +3,22 @@ import sqlite3
 import argparse
 import time
 
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("anki-mcp")
+
 ANKI_DB_PATH = os.path.expanduser(
     "~/Library/Application Support/Anki2/User 1/collection.anki2"
 )
 
 
+@mcp.tool()
 def read_decks():
+    """Read and print the due/new cards of each deck in the Anki database."""
+    result = []
     print("Reading deck status from Anki database...")
     if not os.path.exists(ANKI_DB_PATH):
-        print(f"Database not found at {ANKI_DB_PATH}")
-        return
+        return f"Database not found at {ANKI_DB_PATH}"
     conn = sqlite3.connect(ANKI_DB_PATH)
     cursor = conn.cursor()
     try:
@@ -20,9 +26,8 @@ def read_decks():
         cursor.execute("SELECT id, name FROM decks;")
         decks = cursor.fetchall()
         if not decks:
-            print("No decks found.")
             conn.close()
-            return
+            return "No decks found."
         # Get current day (days since epoch)
         current_day = int(time.time() // 86400)
         # For each deck, count due and new cards
@@ -45,38 +50,16 @@ def read_decks():
                 (deck_id,),
             )
             new_count = cursor.fetchone()[0]
-            print(f"Deck: {deck_name}")
-            print(f"  Due cards: {due_count}")
-            print(f"  New cards: {new_count}")
-            print()
+            result.append(f"Deck: {deck_name}")
+            result.append(f"  Due cards: {due_count}")
+            result.append(f"  New cards: {new_count}")
+            result.append("")
     except sqlite3.Error as e:
-        print(f"Error reading decks: {e}")
-    conn.close()
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Anki MCP Utility")
-    parser.add_argument(
-        "--read", action="store_true", help="Read and print the status of each deck"
-    )
-    args = parser.parse_args()
-
-    if args.read:
-        read_decks()
-    else:
-        print("Opening Anki SQLite database...")
-        if not os.path.exists(ANKI_DB_PATH):
-            print(f"Database not found at {ANKI_DB_PATH}")
-            return
-        conn = sqlite3.connect(ANKI_DB_PATH)
-        cursor = conn.cursor()
-        print("Tables in the database:")
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = cursor.fetchall()
-        for table in tables:
-            print(f"- {table[0]}")
         conn.close()
+        return f"Error reading decks: {e}"
+    conn.close()
+    return "\n".join(result)
 
 
 if __name__ == "__main__":
-    main()
+    mcp.run(transport="stdio")
