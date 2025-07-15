@@ -35,10 +35,11 @@ def read_decks() -> str:
         # For each deck, count due and new cards
         for deck_id, deck_name in decks:
             # Due cards: queue=2 (review) or queue=1 (learning), due <= current_day
+            # Exclude suspended (queue=-1) and buried (queue=-2) cards
             cursor.execute(
                 """
                 SELECT COUNT(*) FROM cards
-                WHERE did = ? AND queue IN (1,2) AND due <= ?
+                WHERE did = ? AND queue IN (1,2) AND due <= ? AND queue NOT IN (-1, -2)
                 """,
                 (deck_id, current_day),
             )
