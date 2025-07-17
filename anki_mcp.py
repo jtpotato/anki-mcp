@@ -30,21 +30,52 @@ def read_decks() -> str:
         if not decks:
             conn.close()
             return "No decks found."
-        # Get current day (days since epoch)
-        current_day = int(time.time() // 86400)
+        # Get current day (days since collection creation)
+        now_unix = int(time.time())
+        today_unix_day = now_unix // 86400
+        cursor.execute("SELECT crt FROM col;")
+        col_row = cursor.fetchone()
+        if not col_row:
+            conn.close()
+            return "Could not read collection creation date."
+        col_crt_sec = col_row[0]  # seconds since Unix epoch
+        col_crt_day = int(col_crt_sec // 86400)
+        current_day = int(today_unix_day - col_crt_day)
+        # print(current_day, "current day since collection creation")
         # For each deck, count due and new cards
         for deck_id, deck_name in decks:
-            # Due cards: queue=2 (review) or queue=1 (learning), due <= current_day
-            # Exclude suspended (queue=-1) and buried (queue=-2) cards
+            # Query 1: All review cards (queue = 2), show due and front text for debugging
+            cursor.execute(
+                """
+                SELECT cards.id, cards.due, notes.flds
+                FROM cards
+                JOIN notes ON cards.nid = notes.id
+                WHERE cards.did = ? AND cards.queue = 2 AND cards.type = 2
+                """,
+                (deck_id,),
+            )
+            all_review_cards = cursor.fetchall()
+            debug_info = []
+            review_due = 0
+            for card_id, due, flds in all_review_cards:
+                front = flds.split("\x1f")[0] if flds else ""
+                if due <= current_day:
+                    # print(due, current_day)
+                    review_due += 1
+                # debug_info.append(f"(id={card_id}, due={due}, front='{front}')")
+            # result.append(f"  Debug: All review cards: {debug_info}")
+
+            # Query 2: Learning cards (queue = 1), due in seconds (Unix time)
             cursor.execute(
                 """
                 SELECT COUNT(*) FROM cards
-                WHERE did = ? AND queue IN (1,2) AND due <= ? AND queue NOT IN (-1, -2)
+                WHERE did = ? AND queue = 1 AND due <= ?
                 """,
-                (deck_id, current_day),
+                (deck_id, now_unix),
             )
-            due_count = cursor.fetchone()[0]
-            # New cards: queue=0 (new)
+            learning_due = cursor.fetchone()[0]
+
+            # Query 3: New cards (queue = 0)
             cursor.execute(
                 """
                 SELECT COUNT(*) FROM cards
@@ -54,7 +85,8 @@ def read_decks() -> str:
             )
             new_count = cursor.fetchone()[0]
             result.append(f"Deck: {deck_name}")
-            result.append(f"  Due cards: {due_count}")
+            result.append(f"  Review due: {review_due}")
+            result.append(f"  Learning due: {learning_due}")
             result.append(f"  New cards: {new_count}")
             result.append("")
     except sqlite3.Error as e:
@@ -69,4 +101,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    print(read_decks())
